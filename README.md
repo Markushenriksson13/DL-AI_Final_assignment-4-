@@ -14,6 +14,7 @@ If you don't already have Homebrew installed, you can install it by running the 
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
+**Download Python 3.10 on MacOS using Homebrew:**
 ```bash
 brew install python@3.10
 ```
