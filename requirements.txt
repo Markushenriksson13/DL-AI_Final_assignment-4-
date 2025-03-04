@@ -11,3 +11,5 @@ numpy
 langchain
 requests
 langchain_together
+python-dateutil
+langchain-community
