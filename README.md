@@ -21,7 +21,7 @@ brew install python@3.10
 
 #### On Windows
 
-1. Download the Python 3.10 installer from the [official Python website](https://www.python.org/downloads/release/python-3100/).
+1. Download the Python 3.10.6 installer from the [official Python website]([https://www.python.org/downloads/release/python-31016/]).
 2. Run the installer and follow the installation steps. Make sure to check the option "Add Python 3.10 to PATH" during installation.
 
 
