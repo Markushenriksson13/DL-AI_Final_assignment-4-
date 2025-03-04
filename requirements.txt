@@ -1,0 +1,13 @@
+# requirements.txt
+# CrewAI (hvis det er tilgængeligt via pip)
+crewai
+
+streamlit
+python-dotenv
+pandas
+matplotlib
+seaborn
+numpy
+langchain
+requests
+langchain_together
