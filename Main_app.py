@@ -14,7 +14,6 @@ from langchain_together import ChatTogether
 
 # Load environment variables
 load_dotenv()
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 
 # Tools for the agents
