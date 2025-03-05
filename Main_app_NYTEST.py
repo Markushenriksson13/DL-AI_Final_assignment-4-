@@ -643,41 +643,15 @@ recommendation_specialist = Agent(
 def create_tasks(location, industry, specific_concerns):
     """Create AI-powered analysis and recommendations."""
     try:
-        # create progress tracking elements
+        # Opret simpel progress bar og status tekst
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        # define task names for progress tracking
-        task_names = ['Climate Analysis', 'Impact Assessment', 'Recommendations']
-        task_count = len(task_names)
+        # Vis startbesked
+        progress_bar.progress(25)
+        status_text.text("Analysis in progress... (this may take several minutes)")
         
-        # define callbacks
-        def task_start_callback(task):
-            if task.task_name == "Climate Analysis":
-                progress_bar.progress(20)
-                status_text.text("processing: climate analysis")
-            elif task.task_name == "Impact Assessment":
-                progress_bar.progress(50)
-                status_text.text("processing: impact assessment")
-            elif task.task_name == "Recommendations":
-                progress_bar.progress(80)
-                status_text.text("processing: generating recommendations")
-
-        def task_end_callback(task, output):
-            if task.task_name == "Climate Analysis":
-                progress_bar.progress(35)
-                status_text.text("completed: climate analysis")
-            elif task.task_name == "Impact Assessment":
-                progress_bar.progress(65)
-                status_text.text("completed: impact assessment")
-            elif task.task_name == "Recommendations":
-                progress_bar.progress(100)
-                status_text.text("analysis completed!")
-
-        # initialize progress at 0%
-        progress_bar.progress(0)
-        status_text.text("starting analysis...")
-
+        # Definer tasks (eksisterende kode)
         climate_analysis = Task(
             description=f"""Analyze the climate data for {location} and identify key patterns 
             and trends that could affect the {industry} sector. Focus on:
@@ -696,7 +670,7 @@ def create_tasks(location, industry, specific_concerns):
             agent=climate_analyst,
             task_name="Climate Analysis"
         )
-
+        progress_bar.progress(50)
         impact_assessment = Task(
             description=f"""Evaluate how the current and forecasted weather conditions will 
             impact the {industry} sector in {location}. Consider:
@@ -716,7 +690,6 @@ def create_tasks(location, industry, specific_concerns):
             context=[climate_analysis],
             task_name="Impact Assessment"
         )
-
         recommendations = Task(
             description=f"""Based on the climate analysis and impact assessment, provide 
             specific, actionable recommendations for the {industry} sector in {location}. 
@@ -737,33 +710,32 @@ def create_tasks(location, industry, specific_concerns):
             context=[impact_assessment],
             task_name="Recommendations"
         )
-
-        # Create and execute the crew with error handling
+        
+        # Opret og kør crew
         try:
             crew = Crew(
                 agents=[climate_analyst, impact_analyst, recommendation_specialist],
                 tasks=[climate_analysis, impact_assessment, recommendations],
                 verbose=True,
                 process=Process.sequential,
-                max_retries=2,
-                callbacks={
-                    "on_task_start": task_start_callback,
-                    "on_task_end": task_end_callback
-                }
+                max_retries=2
             )
             
-            # Use regular try/except instead of callbacks for more reliability
-            status_text.text("Processing: Climate Analysis")
+            # Kør analysen
             result = crew.kickoff()
-            progress_bar.progress(1.0)
-            status_text.text("AI analysis completed!")
+            
+            # Opdater progress når færdig
+            progress_bar.progress(100)
+            status_text.text("Analysis completed!")
+            
             return result
+            
         except Exception as e:
             st.error(f"Error in AI Analysis: {str(e)}")
-            progress_bar.progress(1.0)
+            progress_bar.progress(100)
             status_text.text("Analysis failed")
             return None
-
+            
     except Exception as e:
         st.error(f"Error setting up analysis: {str(e)}")
         return None

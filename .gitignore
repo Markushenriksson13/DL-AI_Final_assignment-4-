@@ -1,8 +1,12 @@
-.env
-__pycache__/
-<<<<<<< HEAD
-.env
-=======
+# virtual envs
 .venv/
 venv/
->>>>>>> 2b4500955c1f594a8baca205a55096738ed20caf
+
+# env variables
+.env
+
+# python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+**/__pycache__/
