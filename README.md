@@ -1,4 +1,13 @@
-# DL-AI_Final_assignment-4-
+# Climate & Sustainability Analysis Platform
+
+A web application that provides climate data analysis and industry-specific weather impact assessments using real-time and historical data from OpenWeatherMap API.
+
+## Features
+
+- **Climate Data Analysis**: View historical temperature, precipitation, humidity, and wind trends for any location
+- **Industry-Specific Impact Assessment**: Analyze how weather patterns affect different sectors (Agriculture, Energy, Transportation, Tourism, Construction, Retail)
+- **AI-Powered Recommendations**: Get tailored sustainability recommendations based on climate data and industry
+- **Data Visualization**: Interactive charts and graphs for easy data interpretation
 
 
 ## Setting Up the Python 3.10 Virtual Environment
@@ -53,3 +62,26 @@ With the virtual environment active, install the project's dependencies from the
 ```bash
 pip install -r requirements.txt
 ```
+
+## Usage
+
+Run the application with Streamlit:
+```
+streamlit run Main_appV2.py
+```
+
+Then enter a location, select an industry sector, and add any specific environmental concerns to receive a comprehensive analysis.
+
+## Data Sources
+
+This application uses the OpenWeatherMap API for data collection:
+- Current weather data
+- Statistical weather data (monthly and yearly aggregations)
+- Historical weather data
+- Geocoding services
+
+## Requirements
+
+- Python 3.10+
+- OpenWeatherMap API key (Medium plan or higher for full historical data access)
+- Together API key for AI recommendations
