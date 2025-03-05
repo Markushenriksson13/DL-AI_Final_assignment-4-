@@ -5,18 +5,18 @@ from ai.agents import create_agents
 def create_tasks(location, industry, specific_concerns):
     """Create AI-powered analysis and recommendations."""
     try:
-        # Opret simpel progress bar og status tekst
+        # Create simple progress bar and status text
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        # Vis startbesked
+        # Display initial message
         progress_bar.progress(25)
         status_text.text("Analysis in progress... (this may take several minutes)")
         
-        # Få agenter
+        # Get agents
         climate_analyst, impact_analyst, recommendation_specialist = create_agents()
         
-        # Definer tasks
+        # Define tasks
         climate_analysis = Task(
             description=f"""Analyze the climate data for {location} and identify key patterns 
             and trends that could affect the {industry} sector. Focus on:
@@ -79,7 +79,7 @@ def create_tasks(location, industry, specific_concerns):
             task_name="Recommendations"
         )
         
-        # Opret og kør crew
+        # Create and run crew
         try:
             crew = Crew(
                 agents=[climate_analyst, impact_analyst, recommendation_specialist],
@@ -89,10 +89,10 @@ def create_tasks(location, industry, specific_concerns):
                 max_retries=2
             )
             
-            # Kør analysen
+            # Run the analysis
             result = crew.kickoff()
             
-            # Opdater progress når færdig
+            # Update progress when finished
             progress_bar.progress(100)
             status_text.text("Analysis completed!")
             

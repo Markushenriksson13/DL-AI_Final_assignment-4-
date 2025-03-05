@@ -34,22 +34,22 @@ def main():
                 climate_data = get_climate_data(location)
                 impact_data = get_weather_impact_analysis(location, industry)
                 
-                # Display climate data visualizations
+                # display climate data visualizations
                 display_climate_data(climate_data, location)
                 
-                # Display impact data visualizations
+                # display impact data visualizations
                 display_impact_data(impact_data, location, industry)
                 
-                # Create and display AI analysis
+                # create and display AI analysis
                 st.subheader("AI Analysis & Recommendations")
                 st.write("Performing detailed AI analysis of climate patterns and impacts...")
                 
-                # Generate AI analysis
+                # generate AI analysis
                 try:
                     tasks = create_tasks(location, industry, concerns)
                     
                     if tasks is None:
-                        # Provide alternative quick recommendations when AI analysis fails
+                        # provide alternative quick recommendations when AI analysis fails
                         st.warning("AI analysis couldn't be completed. Here are some basic recommendations:")
                         if "error" not in impact_data and "overall_impact" in impact_data:
                             recommendations = get_sector_recommendations(industry, impact_data)
@@ -63,18 +63,18 @@ def main():
                                                           overall_score)
                             st.info(guidance)
                     else:
-                        # Vis resultaterne når AI-analysen er succesfuld
+                        # display results when AI analysis is successful
                         st.markdown("### AI Analysis Results")
-                        st.markdown(tasks)  # Dette viser det rå resultat
+                        st.markdown(tasks)  # this displays the raw result
                         
-                        # Opdel resultaterne i afsnit for bedre læsbarhed
+                        # split results into sections for better readability
                         if isinstance(tasks, str) and len(tasks) > 0:
                             sections = tasks.split("**")
                             if len(sections) > 1:
                                 for i in range(1, len(sections)):
                                     section = sections[i]
                                     if i < len(sections) - 1:
-                                        section = section + "**"  # Gendan den fjernede "**"
+                                        section = section + "**"  # restore the removed "**"
                                     st.markdown(f"**{section}")
                 except Exception as e:
                     st.error(f"Error in AI analysis: {str(e)}")
