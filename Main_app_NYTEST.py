@@ -651,18 +651,33 @@ def create_tasks(location, industry, specific_concerns):
         task_names = ['Climate Analysis', 'Impact Assessment', 'Recommendations']
         task_count = len(task_names)
         
-        # Definer callbacks
+        # define callbacks
         def task_start_callback(task):
-            status_text.text(f"Processing: {task.task_name}")
-        
+            if task.task_name == "Climate Analysis":
+                progress_bar.progress(20)
+                status_text.text("processing: climate analysis")
+            elif task.task_name == "Impact Assessment":
+                progress_bar.progress(50)
+                status_text.text("processing: impact assessment")
+            elif task.task_name == "Recommendations":
+                progress_bar.progress(80)
+                status_text.text("processing: generating recommendations")
+
         def task_end_callback(task, output):
-            # Find index af denne task for at beregne fremskridt
-            if hasattr(task, 'task_name') and task.task_name in task_names:
-                idx = task_names.index(task.task_name) + 1
-                progress = idx / task_count
-                progress_bar.progress(progress)
-                status_text.text(f"Completed: {task.task_name}")
-                
+            if task.task_name == "Climate Analysis":
+                progress_bar.progress(35)
+                status_text.text("completed: climate analysis")
+            elif task.task_name == "Impact Assessment":
+                progress_bar.progress(65)
+                status_text.text("completed: impact assessment")
+            elif task.task_name == "Recommendations":
+                progress_bar.progress(100)
+                status_text.text("analysis completed!")
+
+        # initialize progress at 0%
+        progress_bar.progress(0)
+        status_text.text("starting analysis...")
+
         climate_analysis = Task(
             description=f"""Analyze the climate data for {location} and identify key patterns 
             and trends that could affect the {industry} sector. Focus on:
