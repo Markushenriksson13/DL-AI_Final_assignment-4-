@@ -20,13 +20,16 @@ load_dotenv()
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 
 #############################################
-# KLIMADATA-VÆRKTØJER
+# CLIMATE DATA TOOLS
 #############################################
 
 @tool
 def get_climate_data(location):
     """retrieve comprehensive climate data for a specific location using openweathermap statistical api."""
     api_key = os.getenv("OPENWEATHER_API_KEY")
+    
+    if not api_key:
+        return {"error": "Missing API keys. Make sure OPENWEATHER_API_KEY is set in the .env file"}
     
     # get coordinates for the location
     geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={location}&limit=1&appid={api_key}"
@@ -201,7 +204,7 @@ def get_climate_data(location):
     }
 
 #############################################
-# PÅVIRKNINGSANALYSE-VÆRKTØJER
+# IMPACT ANALYSIS TOOLS
 #############################################
 
 def interpret_impact_score(score):
@@ -391,7 +394,7 @@ def get_weather_impact_analysis(location, sector):
         return {"error": f"error analyzing weather impact: {str(e)}"}
 
 #############################################
-# AI ANALYSE-VÆRKTØJER
+# AI ANALYSIS TOOLS
 #############################################
 
 def create_tasks(location, industry, specific_concerns):
@@ -401,7 +404,7 @@ def create_tasks(location, industry, specific_concerns):
     return specific_concerns
 
 #############################################
-# VISUALISERINGSFUNKTIONER
+# VISUALIZATION FUNCTIONS
 #############################################
 
 def display_climate_data(climate_data, location):
@@ -601,7 +604,7 @@ def display_impact_data(impact_data, location, industry):
     """)
 
 #############################################
-# HOVEDAPPLIKATION
+# MAIN APPLICATION
 #############################################
 
 def main():
@@ -613,7 +616,7 @@ def main():
     industry = st.selectbox("Select industry sector:", 
                            ["Agriculture", "Energy", "Transportation", "Tourism", "Construction", "Retail"])
     concerns = st.text_area("Any specific environmental concerns?", 
-                                  "How will climate change affect our operations in the next decade?")
+                           "How will the anticipated weather changes impact our operations over the coming year?")
     
     if st.button("Analyze"):
         with st.spinner("Analyzing climate and sustainability data..."):
