@@ -1,5 +1,4 @@
 from langchain.tools import Tool
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -9,14 +8,9 @@ import requests
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from langchain.tools import tool
 from langchain_together import ChatTogether
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema.runnable import RunnablePassthrough
 from dateutil.relativedelta import relativedelta
 from crewai import Agent, Task, Crew, Process
-from langchain.tools import Tool
 
 # Load environment variables
 load_dotenv()
@@ -27,7 +21,35 @@ TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 # CLIMATE DATA TOOLS
 #############################################
 
-@tool
+# constants for temperature evaluation
+TEMP_HIGH_THRESHOLD = 2
+TEMP_LOW_THRESHOLD = -2
+HUMIDITY_HIGH_THRESHOLD = 10
+HUMIDITY_LOW_THRESHOLD = -10
+WIND_HIGH_THRESHOLD = 2
+WIND_LOW_THRESHOLD = -2
+
+# constants for impact evaluation
+SEVERE_NEGATIVE_IMPACT = -7
+NEGATIVE_IMPACT = -3
+SLIGHT_NEGATIVE_IMPACT = 0
+NEUTRAL_IMPACT = 3
+POSITIVE_IMPACT = 7
+
+def get_location_coordinates(location, api_key):
+    """get coordinates for a location"""
+    try:
+        geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={location}&limit=1&appid={api_key}"
+        geo_response = requests.get(geocode_url)
+        geo_data = geo_response.json()
+        
+        if not geo_data:
+            return None, handle_api_error(f"location {location} not found")
+        
+        return (geo_data[0]['lat'], geo_data[0]['lon']), None
+    except Exception as e:
+        return None, handle_api_error("error getting location coordinates", e)
+
 def get_climate_data(location: str) -> dict:
     """Retrieve comprehensive climate data for a specific location using OpenWeatherMap statistical API."""
     api_key = os.getenv("OPENWEATHER_API_KEY")
@@ -36,18 +58,11 @@ def get_climate_data(location: str) -> dict:
         return {"error": "Missing API keys. Make sure OPENWEATHER_API_KEY is set in the .env file"}
     
     # get coordinates for the location
-    geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={location}&limit=1&appid={api_key}"
-    try:
-        geo_response = requests.get(geocode_url)
-        geo_data = geo_response.json()
-        
-        if not geo_data:
-            return {"error": f"location {location} not found"}
-        
-        lat = geo_data[0]['lat']
-        lon = geo_data[0]['lon']
-    except Exception as e:
-        return {"error": f"error getting location coordinates: {str(e)}"}
+    coordinates, error = get_location_coordinates(location, api_key)
+    if coordinates is None:
+        return error
+    
+    lat, lon = coordinates
     
     # define dates for the past year (12 months)
     current_date = datetime.now()
@@ -240,29 +255,42 @@ def get_climate_data(location: str) -> dict:
         print(f"Error fetching forecast data: {str(e)}")
         hourly_temps, hourly_humidity, hourly_wind, hourly_dates = [], [], [], []
 
-    # Get daily forecast data
-    daily_url = f"https://api.openweathermap.org/data/2.5/forecast/daily?lat={lat}&lon={lon}&cnt=16&units=metric&appid={api_key}"
+    # Fix for daily forecast: Use standard forecast API data to generate daily values
+    daily_temps_max = []
+    daily_temps_min = []
+    daily_humidity = []
+    daily_wind = []
+    daily_dates = []
+    
     try:
-        daily_response = requests.get(daily_url)
-        daily_data = daily_response.json()
-        
-        daily_temps_max = []
-        daily_temps_min = []
-        daily_humidity = []
-        daily_wind = []
-        daily_dates = []
-        
-        if 'list' in daily_data:
-            for item in daily_data['list']:
+        if 'list' in forecast_data:
+            # Group forecast data by day
+            daily_data = {}
+            for item in forecast_data['list']:
                 date = datetime.fromtimestamp(item['dt'])
-                daily_temps_max.append(item['temp']['max'])
-                daily_temps_min.append(item['temp']['min'])
-                daily_humidity.append(item['humidity'])
-                daily_wind.append(item['speed'])
-                daily_dates.append(date.strftime('%Y-%m-%d'))
+                day_key = date.strftime('%Y-%m-%d')
+                
+                if day_key not in daily_data:
+                    daily_data[day_key] = {
+                        'temps': [],
+                        'humidity': [],
+                        'wind': []
+                    }
+                
+                daily_data[day_key]['temps'].append(item['main']['temp'])
+                daily_data[day_key]['humidity'].append(item['main']['humidity'])
+                daily_data[day_key]['wind'].append(item['wind']['speed'])
+            
+            # Calculate daily values
+            for day_key, data in daily_data.items():
+                if data['temps']:
+                    daily_temps_max.append(max(data['temps']))
+                    daily_temps_min.append(min(data['temps']))
+                    daily_humidity.append(sum(data['humidity']) / len(data['humidity']))
+                    daily_wind.append(sum(data['wind']) / len(data['wind']))
+                    daily_dates.append(day_key)
     except Exception as e:
-        print(f"Error fetching daily forecast: {str(e)}")
-        daily_temps_max, daily_temps_min, daily_humidity, daily_wind, daily_dates = [], [], [], [], []
+        print(f"Error processing daily forecast: {str(e)}")
 
     # Update return statement to include new data
     return {
@@ -304,7 +332,6 @@ def interpret_impact_score(score):
     else:
         return "very positive impact on operations and efficiency"
 
-@tool
 def get_weather_impact_analysis(location: str, sector: str) -> dict:
     """Analyze how weather patterns impact different sectors based on statistical weather data."""
     api_key = os.getenv("OPENWEATHER_API_KEY")
@@ -316,18 +343,11 @@ def get_weather_impact_analysis(location: str, sector: str) -> dict:
         return {"error": f"sector {sector} not supported for weather impact analysis"}
     
     # get coordinates for the location
-    geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={location}&limit=1&appid={api_key}"
-    try:
-        geo_response = requests.get(geocode_url)
-        geo_data = geo_response.json()
-        
-        if not geo_data:
-            return {"error": f"location {location} not found"}
-        
-        lat = geo_data[0]['lat']
-        lon = geo_data[0]['lon']
-    except Exception as e:
-        return {"error": f"error getting location coordinates: {str(e)}"}
+    coordinates, error = get_location_coordinates(location, api_key)
+    if coordinates is None:
+        return error
+    
+    lat, lon = coordinates
     
     # get current weather data
     current_url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={api_key}"
@@ -502,49 +522,30 @@ def get_weather_impact_analysis(location: str, sector: str) -> dict:
 # AI ANALYSIS TOOLS
 #############################################
 
-@tool
 def analyze_trend(data: dict, metric: str) -> dict:
     """Analyze trends in provided weather data metrics."""
     try:
-        # Handle string input
+        # convert string to dict if necessary
         if isinstance(data, str):
             try:
                 import json
                 data = json.loads(data)
             except json.JSONDecodeError:
                 return {"error": "Invalid JSON format"}
-
-        # Extract data based on structure
-        values = None
-        if isinstance(data, dict):
-            if "data" in data and isinstance(data["data"], dict):
-                if metric in data["data"]:
-                    values = data["data"][metric]
-                elif metric == "all":
-                    # Handle 'all' metric request
-                    results = {}
-                    for key, val in data["data"].items():
-                        if isinstance(val, list) and val:
-                            results[key] = {
-                                "average": round(sum(val) / len(val), 2),
-                                "trend": "increasing" if val[-1] > val[0] else "decreasing",
-                                "change_percent": round(((val[-1] - val[0]) / val[0]) * 100, 2) if val[0] != 0 else 0
-                            }
-                    return results
-            elif metric in data:
-                values = data[metric]
-
+        
+        # find values using a single helper function
+        values = extract_values(data, metric)
+        
         if values is None:
             return {"error": f"Metric {metric} not found in data"}
-
         if not isinstance(values, list) or not values:
             return {"error": "No valid data points found"}
-
-        # Calculate statistics
+            
+        # calculate statistics
         avg = sum(values) / len(values)
         trend = "increasing" if values[-1] > values[0] else "decreasing"
         change = ((values[-1] - values[0]) / values[0]) * 100 if values[0] != 0 else 0
-
+        
         return {
             "average": round(avg, 2),
             "trend": trend,
@@ -552,37 +553,57 @@ def analyze_trend(data: dict, metric: str) -> dict:
         }
     except Exception as e:
         return {"error": f"Error analyzing trend: {str(e)}"}
+        
+def extract_values(data, metric):
+    """Helper to extract values from different data structures"""
+    if not isinstance(data, dict):
+        return None
+        
+    if metric == "all" and "data" in data and isinstance(data["data"], dict):
+        results = {}
+        for key, val in data["data"].items():
+            if isinstance(val, list) and val:
+                results[key] = {
+                    "average": round(sum(val) / len(val), 2),
+                    "trend": "increasing" if val[-1] > val[0] else "decreasing", 
+                    "change_percent": round(((val[-1] - val[0]) / val[0]) * 100, 2) if val[0] != 0 else 0
+                }
+        return results
+    
+    # try to find values in different data locations
+    if "data" in data and isinstance(data["data"], dict) and metric in data["data"]:
+        return data["data"][metric]
+    elif metric in data:
+        return data[metric]
+    
+    return None
 
-# Create CrewAI Tool instances
-climate_data_tool = Tool(
-    name="get_climate_data",
-    description="Retrieve comprehensive climate data for a specific location using OpenWeatherMap statistical API.",
-    func=get_climate_data
-)
+AGENT_CONFIGS = {
+    "climate_analyst": {
+        "role": "Climate Data Analyst",
+        "goal": "Analyze weather patterns and their impacts on different sectors",
+        "backstory": """You are a climate data specialist with expertise in analyzing weather 
+        patterns and their effects on various industries. Your analysis combines current 
+        weather data with historical trends to provide actionable insights.""",
+        "model": "together_ai/deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+    },
+    # similar for other agents
+}
 
-weather_impact_tool = Tool(
-    name="get_weather_impact_analysis",
-    description="Analyze how weather patterns impact different sectors based on statistical weather data.",
-    func=get_weather_impact_analysis
-)
-
-trend_analysis_tool = Tool(
-    name="analyze_trend",
-    description="Analyze trends in provided weather data metrics.",
-    func=analyze_trend
-)
-
-# Update agent definitions to use decorated functions
+# later use case:
 climate_analyst = Agent(
-    role="Climate Data Analyst",
-    goal="Analyze weather patterns and their impacts on different sectors",
-    backstory="""You are a climate data specialist with expertise in analyzing weather 
-    patterns and their effects on various industries. Your analysis combines current 
-    weather data with historical trends to provide actionable insights.""",
+    role=AGENT_CONFIGS["climate_analyst"]["role"],
+    goal=AGENT_CONFIGS["climate_analyst"]["goal"],
+    backstory=AGENT_CONFIGS["climate_analyst"]["backstory"],
     verbose=True,
     allow_delegation=False,
-    tools=[get_climate_data, analyze_trend],
-    llm=ChatTogether(model="together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo", temperature=0.7)
+    tools=[
+        Tool(name="get_climate_data", func=get_climate_data, 
+             description="Retrieve comprehensive climate data for a specific location"),
+        Tool(name="analyze_trend", func=analyze_trend,
+             description="Analyze trends in provided weather data metrics")
+    ],
+    llm=ChatTogether(model=AGENT_CONFIGS["climate_analyst"]["model"], temperature=0.7)
 )
 
 impact_analyst = Agent(
@@ -593,8 +614,19 @@ impact_analyst = Agent(
     weather-related challenges and opportunities.""",
     verbose=True,
     allow_delegation=False,
-    tools=[get_weather_impact_analysis, analyze_trend],
-    llm=ChatTogether(model="together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo", temperature=0.7)
+    tools=[
+        Tool(
+            name="get_weather_impact_analysis",
+            func=get_weather_impact_analysis,
+            description="Analyze how weather patterns impact different sectors"
+        ),
+        Tool(
+            name="analyze_trend",
+            func=analyze_trend,
+            description="Analyze trends in provided weather data metrics"
+        )
+    ],
+    llm=ChatTogether(model="together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", temperature=0.7)
 )
 
 recommendation_specialist = Agent(
@@ -611,26 +643,26 @@ recommendation_specialist = Agent(
 def create_tasks(location, industry, specific_concerns):
     """Create AI-powered analysis and recommendations."""
     try:
-        # Create progress tracking elements
+        # create progress tracking elements
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        def handle_task_error(task_name, error):
-            st.error(f"Error in {task_name}: {str(error)}")
-            progress_bar.progress(1.0)
-            status_text.text(f"Analysis failed at: {task_name}")
-            return None
-
-        # Define task progress callbacks
-        def task_start_callback(task_name):
-            status_text.text(f"Processing: {task_name}")
+        # define task names for progress tracking
+        task_names = ['Climate Analysis', 'Impact Assessment', 'Recommendations']
+        task_count = len(task_names)
         
-        def task_end_callback(task_name):
-            current_tasks = ['Climate Analysis', 'Impact Assessment', 'Recommendations']
-            progress = (current_tasks.index(task_name) + 1) / len(current_tasks)
-            progress_bar.progress(progress)
-            status_text.text(f"Completed: {task_name}")
-
+        # Definer callbacks
+        def task_start_callback(task):
+            status_text.text(f"Processing: {task.task_name}")
+        
+        def task_end_callback(task, output):
+            # Find index af denne task for at beregne fremskridt
+            if hasattr(task, 'task_name') and task.task_name in task_names:
+                idx = task_names.index(task.task_name) + 1
+                progress = idx / task_count
+                progress_bar.progress(progress)
+                status_text.text(f"Completed: {task.task_name}")
+                
         climate_analysis = Task(
             description=f"""Analyze the climate data for {location} and identify key patterns 
             and trends that could affect the {industry} sector. Focus on:
@@ -692,23 +724,30 @@ def create_tasks(location, industry, specific_concerns):
         )
 
         # Create and execute the crew with error handling
-        crew = Crew(
-            agents=[climate_analyst, impact_analyst, recommendation_specialist],
-            tasks=[climate_analysis, impact_assessment, recommendations],
-            verbose=True,
-            process=Process.sequential,
-            max_retries=2,  # Add retry attempts
-            task_start_callback=task_start_callback,
-            task_end_callback=task_end_callback
-        )
-
         try:
+            crew = Crew(
+                agents=[climate_analyst, impact_analyst, recommendation_specialist],
+                tasks=[climate_analysis, impact_assessment, recommendations],
+                verbose=True,
+                process=Process.sequential,
+                max_retries=2,
+                callbacks={
+                    "on_task_start": task_start_callback,
+                    "on_task_end": task_end_callback
+                }
+            )
+            
+            # Use regular try/except instead of callbacks for more reliability
+            status_text.text("Processing: Climate Analysis")
             result = crew.kickoff()
             progress_bar.progress(1.0)
             status_text.text("AI analysis completed!")
             return result
         except Exception as e:
-            return handle_task_error("AI Analysis", e)
+            st.error(f"Error in AI Analysis: {str(e)}")
+            progress_bar.progress(1.0)
+            status_text.text("Analysis failed")
+            return None
 
     except Exception as e:
         st.error(f"Error setting up analysis: {str(e)}")
@@ -828,25 +867,28 @@ def display_climate_data(climate_data, location):
             ax.text(x, y + 0.2, f'{y:.1f}m/s', ha='center')
         st.pyplot(fig)
 
-    # Detailed temperature trend (3-hourly)
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(climate_data["hourly_dates"], climate_data["hourly_temperatures"], 
-            marker='o', label='Temperature (°C)', color='red', alpha=0.6, markersize=4)
-    ax.fill_between(climate_data["hourly_dates"], 
-                    [t-1 for t in climate_data["hourly_temperatures"]], 
-                    [t+1 for t in climate_data["hourly_temperatures"]], 
-                    color='red', alpha=0.2)
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Temperature (°C)')
-    plt.xticks(range(0, len(climate_data["hourly_dates"]), 3), 
-              [climate_data["hourly_dates"][i] for i in range(0, len(climate_data["hourly_dates"]), 3)],
-              rotation=45, ha='right')
-    ax.grid(True, alpha=0.3)
-    ax.legend()
-    st.pyplot(fig)
+    # Check if hourly data exists before visualization
+    if climate_data.get("hourly_temperatures") and climate_data.get("hourly_dates"):
+        # Detailed temperature trend (3-hourly)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(climate_data["hourly_dates"], climate_data["hourly_temperatures"], 
+                marker='o', label='Temperature (°C)', color='red', alpha=0.6, markersize=4)
+        ax.fill_between(climate_data["hourly_dates"], 
+                        [t-1 for t in climate_data["hourly_temperatures"]], 
+                        [t+1 for t in climate_data["hourly_temperatures"]], 
+                        color='red', alpha=0.2)
+        ax.set_xlabel('Time')
+        ax.set_ylabel('Temperature (°C)')
+        plt.xticks(range(0, len(climate_data["hourly_dates"]), 3), 
+                  [climate_data["hourly_dates"][i] for i in range(0, len(climate_data["hourly_dates"]), 3)],
+                  rotation=45, ha='right')
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        st.pyplot(fig)
 
-    # Daily temperature range visualization
-    if climate_data["daily_temps_max"]:
+    # Check if daily data exists before visualization
+    if climate_data.get("daily_temps_max") and climate_data.get("daily_dates"):
+        # Daily temperature range visualization
         fig, ax = plt.subplots(figsize=(10, 6))
         dates_display = []
         for d in climate_data["daily_dates"]:
@@ -871,28 +913,31 @@ def display_climate_data(climate_data, location):
         ax.legend()
         st.pyplot(fig)
 
-    # Humidity and wind correlation
-    fig, ax1 = plt.subplots(figsize=(10, 6))
-    ax1.set_xlabel('Time')
-    ax1.set_ylabel('Humidity (%)', color='blue')
-    ax1.plot(climate_data["hourly_dates"], climate_data["hourly_humidity"], 
-             color='blue', label='Humidity')
-    ax1.tick_params(axis='y', labelcolor='blue')
+    # Check if hourly humidity and wind data exists
+    if (climate_data.get("hourly_humidity") and climate_data.get("hourly_wind") and 
+        climate_data.get("hourly_dates")):
+        # Humidity and wind correlation
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+        ax1.set_xlabel('Time')
+        ax1.set_ylabel('Humidity (%)', color='blue')
+        ax1.plot(climate_data["hourly_dates"], climate_data["hourly_humidity"], 
+                 color='blue', label='Humidity')
+        ax1.tick_params(axis='y', labelcolor='blue')
 
-    ax2 = ax1.twinx()
-    ax2.set_ylabel('Wind Speed (m/s)', color='green')
-    ax2.plot(climate_data["hourly_dates"], climate_data["hourly_wind"], 
-             color='green', label='Wind Speed')
-    ax2.tick_params(axis='y', labelcolor='green')
+        ax2 = ax1.twinx()
+        ax2.set_ylabel('Wind Speed (m/s)', color='green')
+        ax2.plot(climate_data["hourly_dates"], climate_data["hourly_wind"], 
+                 color='green', label='Wind Speed')
+        ax2.tick_params(axis='y', labelcolor='green')
 
-    plt.xticks(range(0, len(climate_data["hourly_dates"]), 
-              [climate_data["hourly_dates"][i] for i in range(0, len(climate_data["hourly_dates"]), 3)],
-              rotation=45, ha='right'))
+        plt.xticks(range(0, len(climate_data["hourly_dates"]), 3), 
+                  [climate_data["hourly_dates"][i] for i in range(0, len(climate_data["hourly_dates"]), 3)],
+                  rotation=45, ha='right')
 
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
-    st.pyplot(fig)
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+        st.pyplot(fig)
 
     # Weather metrics overview
     st.write("### Current Weather Conditions")
@@ -906,7 +951,7 @@ def display_climate_data(climate_data, location):
                   if climate_data['current_pressure'] != 'N/A' else 'N/A')
     with metrics_col2:
         # Calculate average values for next 24h
-        if climate_data["hourly_temperatures"] and len(climate_data["hourly_temperatures"]) >= 8:
+        if climate_data.get("hourly_temperatures") and len(climate_data["hourly_temperatures"]) >= 8:
             avg_temp = sum(climate_data["hourly_temperatures"][:8]) / 8
             avg_humidity = sum(climate_data["hourly_humidity"][:8]) / 8
             st.metric("Avg. Temp (next 24h)", f"{avg_temp:.1f}°C")
@@ -998,52 +1043,6 @@ def display_impact_data(impact_data, location, industry):
     Interpretation: {overall['interpretation']}
     """)
 
-#############################################
-# MAIN APPLICATION
-#############################################
-
-def main():
-    st.title("Climate & Sustainability Analysis Platform")
-    st.write("Analyze climate trends and sustainability metrics for your location and industry.")
-    
-    # User inputs
-    location = st.text_input("Enter location (city, country):", "Copenhagen, Denmark")
-    industry = st.selectbox("Select industry sector:", 
-                           ["Agriculture", "Energy", "Transportation", "Tourism", "Construction", "Retail"])
-    concerns = st.text_area("Any specific environmental concerns?", 
-                           "How will the anticipated weather changes impact our operations over the coming year?")
-    
-    if st.button("Analyze"):
-        with st.spinner("Analyzing weather and climate data..."):
-            try:
-                # Kald funktionerne direkte uden @tool dekoratoren
-                climate_data = get_climate_data.func(location)
-                impact_data = get_weather_impact_analysis.func(location, industry)
-                
-                # Display climate data visualizations
-                display_climate_data(climate_data, location)
-                
-                # Display impact data visualizations
-                display_impact_data(impact_data, location, industry)
-                
-                # Create and display AI analysis
-                st.subheader("AI Analysis & Recommendations")
-                st.write("Performing detailed AI analysis of climate patterns and impacts...")
-                
-                tasks = create_tasks(location, industry, concerns)
-                
-                if tasks is None:
-                    st.error("AI analysis failed. Please try again.")
-                    return
-                
-                if "error" in impact_data:
-                    st.error(f"Error in impact analysis: {impact_data['error']}")
-                    return
-                
-            except Exception as e:
-                st.error(f"An error occurred during analysis: {str(e)}")
-                return
-
 def get_sector_recommendations(industry, impact_data):
     """Generate sector-specific recommendations based on actual weather impact data."""
     try:
@@ -1071,8 +1070,16 @@ def get_sector_recommendations(industry, impact_data):
             }
         }
         
+        # Create generic recommendations for other sectors
         if industry not in sector_advice:
-            return "No sector-specific recommendations available."
+            sector_advice[industry] = {
+                "high_temp": f"Adjust cooling systems for {industry} operations",
+                "low_temp": f"Implement cold weather procedures for {industry}",
+                "high_humidity": f"Monitor equipment and materials sensitive to humidity in {industry}",
+                "low_humidity": f"Address dry conditions impact on {industry} operations",
+                "high_wind": f"Secure equipment and materials from wind damage in {industry}",
+                "low_wind": f"Optimal conditions for {industry} outdoor operations"
+            }
         
         temp_dev = impact_data["current_weather"]["temperature"] - impact_data["average_weather"]["temperature"]
         humid_dev = impact_data["current_weather"]["humidity"] - impact_data["average_weather"]["humidity"]
@@ -1081,19 +1088,19 @@ def get_sector_recommendations(industry, impact_data):
         recommendations = []
         advice = sector_advice[industry]
         
-        if temp_dev > 2:
+        if temp_dev > TEMP_HIGH_THRESHOLD:
             recommendations.append(advice["high_temp"])
-        elif temp_dev < -2:
+        elif temp_dev < TEMP_LOW_THRESHOLD:
             recommendations.append(advice["low_temp"])
             
-        if humid_dev > 10:
+        if humid_dev > HUMIDITY_HIGH_THRESHOLD:
             recommendations.append(advice["high_humidity"])
-        elif humid_dev < -10:
+        elif humid_dev < HUMIDITY_LOW_THRESHOLD:
             recommendations.append(advice["low_humidity"])
             
-        if wind_dev > 2:
+        if wind_dev > WIND_HIGH_THRESHOLD:
             recommendations.append(advice["high_wind"])
-        elif wind_dev < -2:
+        elif wind_dev < WIND_LOW_THRESHOLD:
             recommendations.append(advice["low_wind"])
         
         if not recommendations:
@@ -1106,14 +1113,97 @@ def get_sector_recommendations(industry, impact_data):
 
 def get_context_guidance(industry, temp, wind, impact_score):
     """Provide context-specific guidance based on current conditions."""
-    if impact_score < -5:
+    if impact_score < SEVERE_NEGATIVE_IMPACT:
         return f"⚠️ Critical weather conditions for {industry} sector. Consider implementing emergency measures."
-    elif impact_score < 0:
+    elif impact_score < NEGATIVE_IMPACT:
         return f"⚠️ Suboptimal conditions. Follow recommendations above to minimize impact."
-    elif impact_score > 5:
+    elif impact_score > POSITIVE_IMPACT:
         return f"✅ Optimal conditions for {industry} activities. Capitalize on favorable weather."
     else:
         return f"ℹ️ Normal operating conditions for {industry} sector. Maintain standard procedures."
+
+#############################################
+# MAIN APPLICATION
+#############################################
+
+def main():
+    st.set_page_config(
+        page_title="Climate & Sustainability Analysis Platform",
+        page_icon="🌍",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    st.title("Climate & Sustainability Analysis Platform")
+    st.write("Analyze climate trends and sustainability metrics for your location and industry.")
+    
+    # User inputs
+    location = st.text_input("Enter location (city, country):", "Copenhagen, Denmark")
+    industry = st.selectbox("Select industry sector:", 
+                           ["Agriculture", "Energy", "Transportation", "Tourism", "Construction", "Retail"])
+    concerns = st.text_area("Any specific environmental concerns?", 
+                           "How will the anticipated weather changes impact our operations over the coming year?")
+    
+    if st.button("Analyze"):
+        with st.spinner("Analyzing weather and climate data..."):
+            try:
+                # call functions directly
+                climate_data = get_climate_data(location)
+                impact_data = get_weather_impact_analysis(location, industry)
+                
+                # Display climate data visualizations
+                display_climate_data(climate_data, location)
+                
+                # Display impact data visualizations
+                display_impact_data(impact_data, location, industry)
+                
+                # Create and display AI analysis
+                st.subheader("AI Analysis & Recommendations")
+                st.write("Performing detailed AI analysis of climate patterns and impacts...")
+                
+                # Generate AI analysis
+                try:
+                    tasks = create_tasks(location, industry, concerns)
+                    
+                    if tasks is None:
+                        # Provide alternative quick recommendations when AI analysis fails
+                        st.warning("AI analysis couldn't be completed. Here are some basic recommendations:")
+                        if "error" not in impact_data and "overall_impact" in impact_data:
+                            recommendations = get_sector_recommendations(industry, impact_data)
+                            st.markdown(f"### Quick Recommendations for {industry} in {location}")
+                            st.markdown(recommendations)
+                            
+                            overall_score = impact_data["overall_impact"]["score"]
+                            guidance = get_context_guidance(industry, 
+                                                          impact_data["current_weather"]["temperature"],
+                                                          impact_data["current_weather"]["wind_speed"],
+                                                          overall_score)
+                            st.info(guidance)
+                    else:
+                        # Vis resultaterne når AI-analysen er succesfuld
+                        st.markdown("### AI Analysis Results")
+                        st.markdown(tasks)  # Dette viser det rå resultat
+                        
+                        # Opdel resultaterne i afsnit for bedre læsbarhed
+                        if isinstance(tasks, str) and len(tasks) > 0:
+                            sections = tasks.split("**")
+                            if len(sections) > 1:
+                                for i in range(1, len(sections)):
+                                    section = sections[i]
+                                    if i < len(sections) - 1:
+                                        section = section + "**"  # Gendan den fjernede "**"
+                                    st.markdown(f"**{section}")
+                except Exception as e:
+                    st.error(f"Error in AI analysis: {str(e)}")
+            except Exception as e:
+                st.error(f"Error in data analysis: {str(e)}")
+
+def handle_api_error(error_msg, exception=None):
+    """Centraliseret fejlhåndtering for API-kald"""
+    if exception:
+        error_details = f": {str(exception)}"
+    else:
+        error_details = ""
+    return {"error": f"{error_msg}{error_details}"}
 
 if __name__ == "__main__":
     main()
