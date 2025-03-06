@@ -149,9 +149,10 @@ pip install -r requirements.txt
 
 ## Usage 🚀
 
+Open terminal window from project folder
 Run the application with Streamlit:
 ```
-streamlit run Main_appV2.py
+streamlit run main.py
 ```
 
 Then enter a location, select an industry sector, and add any specific environmental concerns to receive a comprehensive analysis.
