@@ -116,8 +116,8 @@ The analysis is performed in three sequential stages:
 ## Models Used 🧠
 
 The platform leverages several AI models from Together AI:
-- DeepSeek-R1-Distill-Llama-70B: Used for climate analysis and recommendations
-- Llama-3.3-70B-Instruct-Turbo: Specialized for impact assessment
+- DeepSeek-R1-Distill-Llama-70B-Free: Used for climate analysis and recommendations
+- Llama-3.3-70B-Instruct-Turbo-Free: Specialized for impact assessment
 
 ## Setting Up the Python 3.10 Virtual Environment 🐍
 
