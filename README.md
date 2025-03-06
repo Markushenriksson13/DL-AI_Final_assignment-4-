@@ -9,6 +9,29 @@ A web application that provides climate data analysis and industry-specific weat
 - **AI-Powered Recommendations** 🤖: Get tailored sustainability recommendations based on climate data and industry
 - **Data Visualization** 📈: Interactive charts and graphs for easy data interpretation
 
+## Project Structure
+
+/
+├── main.py                # Main application with Streamlit UI
+├── utils/
+│   ├── __init__.py
+│   ├── constants.py       # Constants for threshold values
+│   └── helpers.py         # Helper functions like handle_api_error
+├── data/
+│   ├── __init__.py
+│   ├── climate_data.py    # Functions for retrieving climate data
+│   └── impact_data.py     # Functions for impact analysis
+├── visualization/
+│   ├── __init__.py
+│   ├── climate_viz.py     # climate data visualization
+│   └── impact_viz.py      # impact data visualization
+└── ai/
+    ├── __init__.py
+    ├── agents.py          # Agent-definitions
+    ├── tasks.py           # Task-definitions
+    ├── tools.py           # Tool definitions (analyze_trend etc.)
+    └── crew.py            # Crew-setup & management
+
 ## API Requirements ⚙️
 
 This application requires two API keys to function properly:
