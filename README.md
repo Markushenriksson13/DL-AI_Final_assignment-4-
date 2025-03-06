@@ -38,7 +38,7 @@ This application requires two API keys to function properly:
 
 1. **OpenWeatherMap API Key** 🌦️
    - A Medium plan or higher is recommended for full historical data access (get if for free below)
-   - Sign up for that free (only student/professor using university email) at [OpenWeatherMap](https://docs.openweather.co.uk/our-initiatives/student-initiative)
+   - Sign up for that free (only student/professor using university email) at [This Link: OpenWeatherMap](https://docs.openweather.co.uk/our-initiatives/student-initiative)
 
 3. **Together AI API Key** 🧠
    - Sign up at [Together AI](https://www.together.ai/)
