@@ -17,7 +17,7 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
-    st.title("Climate & Sustainability Analysis Platform")
+    st.title("🌎 Climate & Sustainability Analysis Platform")
     st.write("Analyze climate trends and sustainability metrics for your location and industry.")
     
     # User inputs

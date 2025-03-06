@@ -15,16 +15,6 @@ def display_impact_data(impact_data, location, industry):
     
     st.subheader(f"Weather Impact Analysis for {industry} in {location}")
     
-    # Display current weather conditions
-    current_weather = impact_data["current_weather"]
-    st.info(f"""
-    **Current Weather Conditions in {location}:**
-    - Temperature: {current_weather['temperature']}°C
-    - Humidity: {current_weather['humidity']}%
-    - Wind Speed: {current_weather['wind_speed']} m/s
-    - Condition: {current_weather['condition']}
-    """)
-    
     # Display impact scores
     impacts = impact_data["impacts"]
     
@@ -36,55 +26,8 @@ def display_impact_data(impact_data, location, industry):
         impacts["wind"]["impact_score"]
     ]
     
-    # Create impact score visualization
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bars = sns.barplot(x=impact_types, y=impact_scores, 
-                      palette=['#ff9999' if x < 0 else '#99ff99' for x in impact_scores], ax=ax)
-    
-    # Add a horizontal line at y=0
-    ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
-    
-    # Add data labels
-    for i, bar in enumerate(bars.patches):
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + 0.3 if bar.get_height() > 0 else bar.get_height() - 1.0,
-            f'{impact_scores[i]:.1f}',
-            ha='center',
-            va='bottom' if bar.get_height() > 0 else 'top',
-            fontsize=12
-        )
-    
-    ax.set_title(f'Weather Impact Scores for {industry} Sector', fontsize=16)
-    ax.set_ylabel('Impact Score (-10 to +10)', fontsize=14)
-    ax.set_ylim(-10, 10)
-    st.pyplot(fig)
-    
-    # Display impact descriptions
-    st.subheader("Weather Impact Details")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**Temperature Impact:**")
-        st.markdown(f"- Score: {impacts['temperature']['impact_score']:.1f}")
-        st.markdown(f"- {impacts['temperature']['description']}")
-        
-        st.markdown("**Humidity Impact:**")
-        st.markdown(f"- Score: {impacts['humidity']['impact_score']:.1f}")
-        st.markdown(f"- {impacts['humidity']['description']}")
-    
-    with col2:
-        st.markdown("**Wind Impact:**")
-        st.markdown(f"- Score: {impacts['wind']['impact_score']:.1f}")
-        st.markdown(f"- {impacts['wind']['description']}")
-        
-        st.markdown("**Current Weather Condition Impact:**")
-        st.markdown(f"- {impact_data['condition_impact']}")
-    
-    # Display overall impact
+    # Display overall impact i en separat boks
     overall = impact_data["overall_impact"]
-    
     st.info(f"""
     **Overall Weather Impact on {industry} Sector:**
     
@@ -92,6 +35,72 @@ def display_impact_data(impact_data, location, industry):
     
     Interpretation: {overall['interpretation']}
     """)
+    
+    # Opret kolonner til impact information og visualisering
+    col1, col2 = st.columns([2, 3])
+    
+    # Først viser vi impact details i venstre kolonne
+    with col1:
+        st.markdown("### Weather Impact Details")
+        
+        st.markdown("**Temperature Impact:**")
+        st.markdown(f"- Score: {impacts['temperature']['impact_score']:.1f}")
+        st.markdown(f"- {impacts['temperature']['description']}")
+        
+        st.markdown("**Humidity Impact:**")
+        st.markdown(f"- Score: {impacts['humidity']['impact_score']:.1f}")
+        st.markdown(f"- {impacts['humidity']['description']}")
+        
+        st.markdown("**Wind Impact:**")
+        st.markdown(f"- Score: {impacts['wind']['impact_score']:.1f}")
+        st.markdown(f"- {impacts['wind']['description']}")
+        
+        st.markdown("**Current Weather Condition Impact:**")
+        st.markdown(f"- {impact_data['condition_impact']}")
+    
+    # Derefter viser vi visualiseringen i højre kolonne
+    with col2:
+        # Create impact score visualization
+        fig, ax = plt.subplots(figsize=(8, 5))
+        bars = sns.barplot(x=impact_types, y=impact_scores, 
+                          palette=['#ff9999' if x < 0 else '#99ff99' for x in impact_scores], ax=ax)
+        
+        # Add a horizontal line at y=0
+        ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+        
+        # Add data labels with adjusted positions
+        for i, bar in enumerate(bars.patches):
+            height = bar.get_height()
+            # Juster y-positionen baseret på om værdien er positiv eller negativ
+            if height >= 0:
+                y_pos = height + 0.3
+                va = 'bottom'
+            else:
+                y_pos = height - 0.5
+                va = 'top'
+            
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                y_pos,
+                f'{impact_scores[i]:.1f}',
+                ha='center',
+                va=va,
+                fontsize=12
+            )
+        
+        # Tilføj titel og labels med justeret størrelse og spacing
+        ax.set_title(f'Weather Impact Scores for {industry} Sector', fontsize=14, pad=15)
+        ax.set_ylabel('Impact Score (-10 to +10)', fontsize=12, labelpad=8)
+        ax.set_ylim(-10, 10)
+        
+        # Juster x-akse labels
+        plt.xticks(fontsize=12)
+        ax.tick_params(axis='x', pad=8)
+        plt.yticks(fontsize=12)
+        
+        # Øg padding for at sikre plads til titel og værdier
+        plt.tight_layout()
+        st.pyplot(fig)
 
 def get_sector_recommendations(industry, impact_data):
     """Generate sector-specific recommendations based on actual weather impact data."""
