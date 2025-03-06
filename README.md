@@ -10,7 +10,7 @@ A web application that provides climate data analysis and industry-specific weat
 - **Data Visualization** 📈: Interactive charts and graphs for easy data interpretation
 
 ## Project Structure
-
+```
 /
 ├── main.py                # Main application with Streamlit UI
 ├── utils/
@@ -31,7 +31,7 @@ A web application that provides climate data analysis and industry-specific weat
     ├── tasks.py           # Task-definitions
     ├── tools.py           # Tool definitions (analyze_trend etc.)
     └── crew.py            # Crew-setup & management
-
+```
 ## API Requirements ⚙️
 
 This application requires two API keys to function properly:
