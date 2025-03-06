@@ -65,18 +65,18 @@ The platform utilizes a sophisticated multi-agent system powered by CrewAI and L
 
 The analysis is performed in three sequential stages:
 
-1. **Climate Analysis** (20-35%)
+1. **Climate Analysis** 
    - Historical data analysis
    - Pattern identification
    - Anomaly detection
 
-2. **Impact Assessment** (50-65%)
+2. **Impact Assessment** 
    - Industry-specific evaluation
    - Resource efficiency analysis
    - Safety considerations
    - Economic implications
 
-3. **Recommendations** (80-100%)
+3. **Recommendations**
    - Short-term adjustments
    - Medium-term strategies
    - Long-term resilience planning
