@@ -1,15 +1,23 @@
-# requirements.txt
-# CrewAI (hvis det er tilgængeligt via pip)
+# AI and Machine Learning
 crewai
+langchain
+langchain-together
+langchain-community
 
-streamlit
-python-dotenv
-pandas
+# Data Visualization
 matplotlib
 seaborn
-numpy
-langchain
+
+# Web Framework
+streamlit
+
+# HTTP Requests
 requests
-langchain_together
+
+# Environment Variables
+python-dotenv
+
+# Data Handling
+numpy
+pandas
 python-dateutil
-langchain-community
